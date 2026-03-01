@@ -1,0 +1,70 @@
+{
+  "account": {
+    "uin": "",
+    "auth_code": ""
+  },
+  "farm": {
+    "enable_auto": true,
+    "actions": [
+      "weed",
+      "insect",
+      "water",
+      "harvest",
+      "sell",
+      "remove",
+      "unlock",
+      "upgrade",
+      "plant"
+    ],
+    "base_minute": 5,
+    "offset_minute": 0,
+    "harvest_sell": true,
+    "seed_mode": "preferred_id",
+    "preferred_seed_id": 20002,
+    "normal_fertilize": false,
+    "organic_fertilize": false
+  },
+  "friend": {
+    "enable_auto": true,
+    "actions": [
+      "steal",
+      "help_water",
+      "help_weed",
+      "help_insect"
+    ],
+    "base_minute": 60,
+    "offset_minute": 0,
+    "put_insect_count": 1,
+    "put_weed_count": 1,
+    "whitelist": [],
+    "blacklist": [],
+    "steal": true,
+    "help": true,
+    "bad": false
+  },
+  "notify": {
+    "actions": [
+      "LandsNotify",
+      "ItemNotify",
+      "TaskInfoNotify",
+      "FriendApplicationReceivedNotify",
+      "BasicNotify",
+      "Kickout"
+    ]
+  },
+  "auto_reward": true,
+  "client": {
+    "client_version": "1.6.0.5_20251224",
+    "appid": "1112386029",
+    "platform": "qq",
+    "os": "iOS",
+    "sys_software": "iOS 26.2.1",
+    "network": "wifi",
+    "memory": 7672,
+    "device_id": "iPhone X<iPhone18,3>"
+  },
+  "user_heartbeat": 30,
+  "ws_heartbeat": 30,
+  "rpc_timeout": 25,
+  "step_interval": 0.2
+}

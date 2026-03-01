@@ -1,0 +1,14 @@
+include README.md
+include CHANGELOG.md
+include LICENSE
+include requirements.txt
+include src/open_qqfarm/default_config.json
+
+recursive-include src/open_qqfarm/game_data *.json
+recursive-include src/open_qqfarm/game_data/seed_images_named *.png
+recursive-include src/open_qqfarm/dashboard/templates *.html
+recursive-include src/open_qqfarm/dashboard/assets/css *.css
+recursive-include src/open_qqfarm/dashboard/assets/images *.png
+recursive-include src/open_qqfarm/dashboard/assets/js *.js
+recursive-include src/open_qqfarm/dashboard/assets/js/shared *.js
+recursive-include src/open_qqfarm/proto *.pyi

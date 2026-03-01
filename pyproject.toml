@@ -1,0 +1,62 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "open-qqfarm"
+version = "0.1.0"
+description = "Independent Python package for QQ Farm protocol and automation core."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "LGPL-2.1-or-later"
+authors = [{ name = "open-qqfarm contributors" }]
+keywords = ["qqfarm", "automation", "protobuf", "aiohttp"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "aiohttp>=3.9,<4",
+    "protobuf>=5.29.5,<6",
+    "segno>=1.6,<2",
+]
+
+[project.scripts]
+open-qqfarm = "open_qqfarm.cli:main"
+
+[project.optional-dependencies]
+dev = [
+    "build>=1.2.2",
+    "pytest>=8.0,<9",
+    "ruff>=0.7,<1",
+    "twine>=5.1.1",
+]
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["open_qqfarm*"]
+
+[tool.setuptools.package-data]
+open_qqfarm = [
+    "default_config.json",
+    "game_data/*.json",
+    "game_data/seed_images_named/*.png",
+    "dashboard/templates/*.html",
+    "dashboard/assets/css/*.css",
+    "dashboard/assets/images/*.png",
+    "dashboard/assets/js/*.js",
+    "dashboard/assets/js/shared/*.js",
+    "proto/*.pyi",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
