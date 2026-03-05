@@ -143,34 +143,7 @@ start.bat
 
 ## API 示例
 
-```python
-import asyncio
-import json
-from pathlib import Path
-
-from open_qqfarm import QFarmCoreAPP
-
-
-async def notify(msg: str) -> None:
-    print(msg)
-
-
-async def main() -> None:
-    config = json.loads(Path("config.json").read_text(encoding="utf-8"))
-    app = QFarmCoreAPP(config)
-
-    await app.start_login(notify)
-    await app.start()
-
-    lands = await app.get_all_lands()
-    print(f"lands={len(lands)}")
-
-    await app.do_farm_all()
-    await app.stop()
-
-
-asyncio.run(main())
-```
+自行查看源码
 
 ## 发布前检查
 
