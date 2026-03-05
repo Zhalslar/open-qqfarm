@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>QQ 农场</title>
+  <link rel="icon" href="/assets/images/logo.png" />
+  <link rel="stylesheet" href="/assets/css/page.css?v=20260304-bg-bounds" />
+</head>
+<body>
+  <div class="scene-bg"></div>
+  <div class="scene-overlay"></div>
+
+  <main class="main-area">
+    <section class="farm-stage">
+      <div class="farm-overlay farm-overlay-top-left">
+        <aside id="accountCard" class="account-card compact" role="button" tabindex="0" aria-label="查看农田主人基础信息">
+          <div class="avatar-wrap">
+            <img id="accountAvatar" alt="avatar" />
+          </div>
+          <div class="account-main">
+            <h2 id="accountName">农场主人</h2>
+            <div class="account-meta is-hidden">
+              <span id="accountLevel">Lv.0</span>
+              <span id="accountGid">GID 0</span>
+            </div>
+            <div class="account-exp">
+              <span class="account-exp-star" aria-hidden="true">
+                <svg viewBox="0 0 100 100">
+                  <path d="M50 8 L62 33 L89 36 L68 54 L75 82 L50 67 L25 82 L32 54 L11 36 L38 33 Z"></path>
+                </svg>
+                <span id="accountExpLevel" class="account-exp-level">0</span>
+              </span>
+              <div class="account-exp-track">
+                <span id="accountExpBar" class="account-exp-fill"></span>
+                <span id="accountExpText" class="account-exp-text">0/0</span>
+              </div>
+            </div>
+            <div class="account-economy" aria-label="农场资产">
+              <div class="economy-pill gold">
+                <span class="economy-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="10" fill="#ffd65a" stroke="#d08a12" stroke-width="1.8"></circle>
+                    <path d="M8.2 10.4c0-2 1.8-3.4 4.1-3.4 1.8 0 3.2.8 4 2" fill="none" stroke="#c1740a" stroke-width="2" stroke-linecap="round"></path>
+                    <path d="M15.7 13.6c0 2-1.8 3.4-4.1 3.4-1.8 0-3.2-.8-4-2" fill="none" stroke="#c1740a" stroke-width="2" stroke-linecap="round"></path>
+                  </svg>
+                </span>
+                <span id="accountGoldText" class="economy-value">--</span>
+              </div>
+              <div class="economy-pill coupon">
+                <span class="economy-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24">
+                    <rect x="2.4" y="5.2" width="19.2" height="13.6" rx="2.8" fill="#7ecb54" stroke="#4d9d33" stroke-width="1.6"></rect>
+                    <rect x="8" y="8.3" width="8" height="7.4" rx="1.2" fill="#e9f8dd" stroke="#5ba53b" stroke-width="1.1"></rect>
+                    <path d="M12 8.9 13.2 11.2 15.8 11.6 13.9 13.5 14.3 16 12 14.8 9.7 16 10.1 13.5 8.2 11.6 10.8 11.2Z" fill="#6eb647"></path>
+                  </svg>
+                </span>
+                <span id="accountCouponText" class="economy-value">--</span>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      <div class="farm-overlay farm-overlay-top-right">
+        <div class="tools-block tools-top-right">
+          <button id="btnFriendsToggle" class="tool-btn tool-icon-btn icon-only" title="好友" aria-label="好友列表开关" aria-expanded="true">
+            <span class="tool-icon" aria-hidden="true">👥</span>
+            <span class="tool-label">好友</span>
+          </button>
+          <button id="btnAuth" class="tool-btn tool-icon-btn icon-only" title="二维码登录" aria-label="二维码登录">
+            <span class="tool-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="12" r="9.5" fill="#ffe7a7" stroke="#d9ac46" stroke-width="1.2" />
+                <rect x="11.2" y="6.2" width="6.2" height="11.6" rx="1.2" fill="#88c86a" stroke="#4f8e39" stroke-width="1.1" />
+                <rect x="12.7" y="10.4" width="2.2" height="3.2" rx="0.6" fill="#f7f2de" />
+                <path d="M4.2 12h8.2" stroke="#3b6d2d" stroke-width="1.6" stroke-linecap="round" />
+                <path d="M9.3 8.9 12.5 12 9.3 15.1" stroke="#3b6d2d" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </span>
+            <span class="tool-label">登录</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="farm-overlay farm-overlay-left-center">
+        <div class="left-tools-with-automation">
+          <div class="tools-block tools-floating">
+            <button id="btnBgm" class="tool-btn tool-icon-btn icon-only" title="背景音乐" aria-label="背景音乐开关">
+              <span class="tool-icon" aria-hidden="true">🎵</span>
+              <span class="tool-label">音乐</span>
+            </button>
+            <button id="btnShop" class="tool-btn tool-icon-btn icon-only" title="商店" aria-label="商店">
+              <span class="tool-icon" aria-hidden="true">🏪</span>
+              <span class="tool-label">商店</span>
+            </button>
+            <button id="btnConfig" class="tool-btn tool-icon-btn icon-only" title="配置" aria-label="配置">
+              <span class="tool-icon" aria-hidden="true">⚙️</span>
+              <span class="tool-label">配置</span>
+            </button>
+            <button id="btnLogs" class="tool-btn tool-icon-btn icon-only" title="日志" aria-label="日志">
+              <span class="tool-icon" aria-hidden="true">🧾</span>
+              <span class="tool-label">日志</span>
+            </button>
+          </div>
+          <section id="automationPanel" class="automation-panel" aria-label="自动化任务区"></section>
+        </div>
+      </div>
+
+      <div id="farmViewport" class="farm-viewport" aria-label="农田视口，可滚轮缩放，按住右键拖拽平移">
+        <div id="farmBgLayer" class="farm-bg-layer" aria-hidden="true"></div>
+        <div id="landGrid" class="land-grid"></div>
+      </div>
+
+      <div class="farm-overlay farm-overlay-summary-right">
+        <div id="farmSummary" class="summary-strip"></div>
+      </div>
+
+      <div class="farm-overlay farm-overlay-hotbar">
+        <div id="hotbarSelectedName" class="hotbar-selected-name is-empty"></div>
+        <section id="hotbar" class="hotbar" aria-label="背包快捷栏">
+          <div id="hotbarSlots" class="hotbar-slots"></div>
+        </section>
+      </div>
+
+      <div class="farm-overlay farm-overlay-friends">
+        <section id="friendsStage" class="friends-stage">
+          <div class="friends-head">好友农场</div>
+          <div id="friendsRow" class="friends-row"></div>
+        </section>
+      </div>
+
+      <div class="farm-overlay farm-overlay-home">
+        <button id="btnMyFarm" class="tool-btn tool-icon-btn icon-only" title="回家" aria-label="回家">
+          <span class="tool-icon" aria-hidden="true">🏠</span>
+          <span class="tool-label">回家</span>
+        </button>
+      </div>
+    </section>
+  </main>
+
+  <div id="dataPanel" class="data-panel hidden">
+    <div class="panel-mask" id="panelMask"></div>
+    <div class="panel-card">
+      <header class="panel-head">
+        <h3 id="panelTitle">数据面板</h3>
+        <div class="panel-actions">
+          <button id="panelSellItem" class="panel-sell hidden">出售</button>
+          <button id="panelSellFruits" class="panel-sell-fruits hidden">一键出售果实</button>
+          <button id="panelSort" class="panel-sort hidden">一键整理</button>
+          <button id="panelClose" class="panel-close">关闭</button>
+          <button id="panelConfigSave" class="panel-config-save hidden">保存</button>
+        </div>
+      </header>
+      <div id="panelBody" class="panel-body"></div>
+    </div>
+  </div>
+
+  <script src="/assets/js/shared/http.js?v=20260304-buyseed"></script>
+  <script src="/assets/js/shared/page-context.js?v=20260304-bg-bounds"></script>
+  <script src="/assets/js/shared/page-formatters.js?v=20260304-buyseed"></script>
+  <script src="/assets/js/shared/page-toast.js?v=20260304-buyseed"></script>
+  <script src="/assets/js/shared/page-friends.js?v=20260304-buyseed"></script>
+  <script src="/assets/js/shared/page-owner-card.js?v=20260304-buyseed"></script>
+  <script src="/assets/js/shared/page-auth.js?v=20260304-buyseed"></script>
+  <script src="/assets/js/shared/page-shop.js?v=20260304-buyseed"></script>
+  <script src="/assets/js/shared/page-logs.js?v=20260304-buyseed"></script>
+  <script src="/assets/js/shared/page-inventory.js?v=20260304-buyseed"></script>
+  <script src="/assets/js/shared/page-music.js?v=20260304-buyseed"></script>
+  <script src="/assets/js/shared/page-farm-camera.js?v=20260304-bg-boundary-fix"></script>
+  <script src="/assets/js/shared/page-farm-render.js?v=20260304-buyseed"></script>
+  <script src="/assets/js/shared/page-farm-actions.js?v=20260304-buyseed"></script>
+  <script src="/assets/js/shared/page-runtime-sync.js?v=20260304-buyseed"></script>
+  <script src="/assets/js/shared/page-config-panel.js?v=20260304-buyseed"></script>
+  <script src="/assets/js/shared/page-automation-panel.js?v=20260304-buyseed"></script>
+  <script src="/assets/js/page.js?v=20260304-buyseed"></script>
+</body>
+</html>

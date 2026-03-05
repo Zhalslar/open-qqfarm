@@ -22,6 +22,127 @@ class LandService:
     ) -> None:
         self.account = account
         self.gdata = gdata
+        self.cache_ttl_sec = 2.0
+        self._lands_cache: dict[tuple[str, int], dict[str, Any]] = {}
+
+    @staticmethod
+    def _cache_key(host_gid: int, friend: bool) -> tuple[str, int]:
+        return ("friend" if friend else "self", int(host_gid))
+
+    def _is_cache_fresh(self, fetched_at: float) -> bool:
+        if self.cache_ttl_sec <= 0:
+            return False
+        return (time.time() - float(fetched_at)) <= self.cache_ttl_sec
+
+    def set_cache_ttl(self, ttl_sec: float) -> None:
+        self.cache_ttl_sec = max(0.0, float(ttl_sec))
+
+    def invalidate_cache(
+        self,
+        *,
+        host_gid: int | None = None,
+        friend: bool | None = None,
+    ) -> None:
+        if host_gid is None and friend is None:
+            self._lands_cache.clear()
+            return
+
+        target_gid = int(host_gid) if host_gid is not None else None
+        mode = None if friend is None else ("friend" if friend else "self")
+        drop_keys = [
+            key
+            for key in self._lands_cache
+            if (target_gid is None or key[1] == target_gid)
+            and (mode is None or key[0] == mode)
+        ]
+        for key in drop_keys:
+            self._lands_cache.pop(key, None)
+
+    def _get_cached_entry(
+        self,
+        *,
+        host_gid: int,
+        friend: bool,
+    ) -> dict[str, Any] | None:
+        key = self._cache_key(host_gid, friend)
+        entry = self._lands_cache.get(key)
+        if not entry:
+            return None
+        if not self._is_cache_fresh(entry.get("fetched_at", 0.0)):
+            self._lands_cache.pop(key, None)
+            return None
+        return entry
+
+    def _store_cache_entry(
+        self,
+        *,
+        host_gid: int,
+        friend: bool,
+        lands: list[plantpb_pb2.LandInfo],
+        basic: Any = None,
+    ) -> None:
+        key = self._cache_key(host_gid, friend)
+        self._lands_cache[key] = {
+            "fetched_at": time.time(),
+            "basic": basic,
+            "lands": list(lands),
+            "analyze": (
+                self.analyze_friend_lands(lands)
+                if friend
+                else self.analyze_lands(lands)
+            ),
+        }
+
+    async def get_all_lands(
+        self,
+        session: Any,
+        host_gid: int,
+        *,
+        cache: bool = True,
+    ) -> list[plantpb_pb2.LandInfo]:
+        if cache:
+            entry = self._get_cached_entry(host_gid=host_gid, friend=False)
+            if entry is not None:
+                return list(entry.get("lands", []))
+
+        lands = await session.plant_all_lands(int(host_gid))
+        self._store_cache_entry(host_gid=host_gid, friend=False, lands=lands)
+        return list(lands)
+
+    async def get_friend_lands(
+        self,
+        session: Any,
+        host_gid: int,
+        *,
+        cache: bool = True,
+    ) -> tuple[Any, list[plantpb_pb2.LandInfo]]:
+        if cache:
+            entry = self._get_cached_entry(host_gid=host_gid, friend=True)
+            if entry is not None:
+                return entry.get("basic"), list(entry.get("lands", []))
+
+        basic, lands = await session.visit_enter_friend(int(host_gid))
+        self._store_cache_entry(
+            host_gid=host_gid,
+            friend=True,
+            lands=lands,
+            basic=basic,
+        )
+        return basic, list(lands)
+
+    def get_cached_analyze(
+        self,
+        *,
+        host_gid: int,
+        friend: bool = False,
+    ) -> LandAnalyzeResult | None:
+        entry = self._get_cached_entry(host_gid=host_gid, friend=friend)
+        if entry is None:
+            return None
+        analyze = entry.get("analyze")
+        if not isinstance(analyze, LandAnalyzeResult):
+            return None
+        return analyze
 
     def collect_crop_names(self, lands: list[plantpb_pb2.LandInfo]) -> list[str]:
         names: list[str] = []
@@ -52,7 +173,7 @@ class LandService:
         target_ids = {int(v) for v in land_ids if int(v) > 0}
         if not target_ids:
             return []
-        lands = await session.plant_all_lands(int(host_gid))
+        lands = await self.get_all_lands(session, int(host_gid), cache=True)
         target_lands = [land for land in lands if int(land.id) in target_ids]
         return self.collect_crop_names(target_lands)
 

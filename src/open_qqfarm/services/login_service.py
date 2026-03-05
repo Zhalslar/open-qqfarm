@@ -22,7 +22,6 @@ class LoginService:
     QLOGIN_URL: Final = "https://h5.qzone.qq.com/qqq/code"
     SCAN_URL: Final = "https://q.qq.com/ide/devtoolAuth/syncScanSateGetTicket"
     LOGIN_URL: Final = "https://q.qq.com/ide/login"
-    QR_FILE_NAME: Final = "login_qr.svg"
 
     def __init__(
         self,
@@ -34,12 +33,10 @@ class LoginService:
         self.runtime = runtime
         self.account = account
 
-
         self.appid = config.client.appid
         self.login_timeout = 20
         self.poll_timeout = 120
         self.pull_interval = 1
-        self.qr_code_path = self.cfg.qr_code_dir / self.QR_FILE_NAME
         self.headers = {
             "qua": "V1_HT5_QDT_0.70.2209190_x64_0_DEV_D",
             "host": "q.qq.com",
@@ -70,19 +67,6 @@ class LoginService:
                 pass
         await self.session.close()
         logger.info("登录服务已关闭")
-
-    async def cancel_login(self) -> None:
-        task = self._login_task
-        if task is None or task.done():
-            return
-        logger.info("取消登录任务")
-        task.cancel()
-        try:
-            await task
-        except asyncio.CancelledError:
-            pass
-        except Exception:
-            pass
 
     async def start_login(
         self,
@@ -118,6 +102,31 @@ class LoginService:
         except Exception as e:
             self.runtime.logging_in = False
             logger.error("登录失败", error=str(e))
+            if isinstance(
+                e,
+                (
+                    aiohttp.ClientConnectionError,
+                    aiohttp.ClientOSError,
+                    asyncio.TimeoutError,
+                    OSError,
+                ),
+            ):
+                if self.runtime.network_available:
+                    logger.warning("检测到网络不可用，暂停登录尝试")
+                self.runtime.network_available = False
+
+    async def cancel_login(self) -> None:
+        task = self._login_task
+        if task is None or task.done():
+            return
+        logger.info("取消登录任务")
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+        except Exception:
+            pass
 
     def _build_login_url(self, code: str) -> str:
         return f"{self.QLOGIN_URL}/{code}?_proxy=1&from=ide"
@@ -154,11 +163,11 @@ class LoginService:
     def _update_login_qr(self, code: str) -> tuple[Path, str]:
         login_url = self._build_login_url(code)
         qr = segno.make(login_url)
-        qr.save(str(self.qr_code_path), scale=8)
+        qr.save(str(self.cfg.qr_code_path), scale=8)
         out = StringIO()
         qr.terminal(out=out, compact=True)
         qr_terminal = out.getvalue()
-        return self.qr_code_path, qr_terminal
+        return self.cfg.qr_code_path, qr_terminal
 
     async def _poll_login(
         self,
@@ -170,7 +179,7 @@ class LoginService:
             current_code = code
             refresh_count = 0
             refresh_limit = 3
-
+            verify_fail_count = 0
             while True:
                 for _ in range(self.poll_timeout):
                     await asyncio.sleep(self.pull_interval)
@@ -189,7 +198,6 @@ class LoginService:
                                     level="warning",
                                 )
                                 return
-
                             await self._emit(
                                 "登录码已失效，正在自动刷新...",
                                 notify=notify,
@@ -207,16 +215,26 @@ class LoginService:
                             return
 
                         case ScanState(status=ScanStatus.OK, ticket=ticket, uin=uin):
-                            auth_code = await self._get_auth_code(ticket)
-                            if not auth_code:
+                            ok, message, auth_code = await self._get_auth_code(ticket)
+                            if not ok and auth_code == "-3000":
+                                verify_fail_count += 1
+                                if verify_fail_count in {1, 5, 10}:
+                                    await self._emit(
+                                        "扫码已确认，等待授权生效...",
+                                        notify=notify,
+                                        uin=uin,
+                                        verify_fail_count=verify_fail_count,
+                                    )
+                                continue
+
+                            if not ok:
                                 await self._emit(
-                                    "登录成功但未获取到网关授权码，请重试",
+                                    f"{message}({auth_code})",
                                     notify=notify,
                                     level="warning",
                                     uin=uin,
                                 )
                                 return
-
                             self.account.set_uin(uin)
                             self.account.set_auth_code(auth_code)
                             await self._emit(f"登录成功：{uin}", notify=notify, uin=uin)
@@ -232,6 +250,7 @@ class LoginService:
                     return
 
                 current_code = await self.request_login_code()
+                verify_fail_count = 0
                 login_url = self._build_login_url(current_code)
                 _, qr_terminal = self._update_login_qr(current_code)
 
@@ -278,11 +297,15 @@ class LoginService:
             # logger.debug(f"查询登录状态: {data}")
             # {'code': 0, 'data': {'code': 'eea0ed51a7a93fec595490759cb225d0', 'ticket': '2e2d23d6c21ad193daf6178abbff4a65', 'ok': 1, 'uin': '2936169201'}, 'message': ''}
 
-        res_code = data.get("code")
+        raw_code = data.get("code")
+        try:
+            res_code = int(raw_code)
+        except (TypeError, ValueError):
+            res_code = raw_code
         payload = data.get("data", {})
 
         if res_code == 0:
-            if payload.get("ok") != 1:
+            if str(payload.get("ok")) != "1":
                 return ScanState(status=ScanStatus.WAIT)
 
             return ScanState(
@@ -292,14 +315,16 @@ class LoginService:
             )
 
         if res_code == -10003:
-            return ScanState(status=ScanStatus.USED)
+            return ScanState(
+                status=ScanStatus.USED,
+            )
 
         return ScanState(
             status=ScanStatus.ERROR,
-            error=f"Code: {res_code}",
+            error=f"Code: {raw_code}",
         )
 
-    async def _get_auth_code(self, ticket: str) -> str:
+    async def _get_auth_code(self, ticket: str) -> tuple[bool, str, str]:
         payload = {
             "appid": self.appid,
             "ticket": ticket,
@@ -307,9 +332,11 @@ class LoginService:
         async with self.session.post(self.LOGIN_URL, json=payload) as resp:
             if resp.status != 200:
                 logger.warning("获取网关授权码失败：HTTP状态异常", status=resp.status)
-                return ""
+                return False, "HTTP状态异常", str(resp.status)
             data = await resp.json(content_type=None)
-            logger.debug(f"获取网关授权码: {data}")
+            logger.debug(f"网关票据返回数据: {data}")
             #  {'code': '3e7e436519fc8565fbfd9ebb8daa0570', 'message': 'success'}
-
-        return str(data.get("code") or "")
+            message = str(data.get("message"))
+            code = str(data.get("code") or "")
+            ok = message == "success" and bool(code)
+            return ok, message, code

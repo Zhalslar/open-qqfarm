@@ -37,6 +37,8 @@ class OperationType(str, Enum):
     INSECT = "insect"
     WATER = "water"
     HARVEST = "harvest"
+    SELL = "sell"
+    BUY_SEED = "buy_seed"
     REMOVE = "remove"
     UNLOCK = "unlock"
     UPGRADE = "upgrade"
@@ -52,7 +54,6 @@ class OperationType(str, Enum):
     PUT_WEED = "put_weed"
 
     TASK_CLAIM = "task_claim"
-    SELL = "sell"
     UNKNOWN = "unknown"
 
     def __str__(self) -> str:
@@ -68,6 +69,10 @@ class OperationType(str, Enum):
                 return "浇水"
             case OperationType.HARVEST:
                 return "收获"
+            case OperationType.SELL:
+                return "卖果"
+            case OperationType.BUY_SEED:
+                return "购种"
             case OperationType.REMOVE:
                 return "耕地"
             case OperationType.UNLOCK:
@@ -94,8 +99,6 @@ class OperationType(str, Enum):
                 return "种草"
             case OperationType.TASK_CLAIM:
                 return "任务领取"
-            case OperationType.SELL:
-                return "卖菜"
             case _:
                 return "未知操作"
 
@@ -251,8 +254,9 @@ class ScanState:
 class RuntimeState:
     running: bool = False
     connected: bool = False
-    has_auth_code: bool = False
     logging_in: bool = False
+    auth_code_valid: bool = False
+    network_available: bool = True
     started_at: float = 0.0
 
     @property
@@ -260,19 +264,21 @@ class RuntimeState:
         return (
             self.running
             and self.connected
-            and self.has_auth_code
+            and self.auth_code_valid
         )
 
     def mark_started(self, started_at: float | None = None) -> None:
         self.running = True
         self.connected = False
         self.logging_in = False
+        self.network_available = True
         self.started_at = time.time() if started_at is None else float(started_at)
 
     def mark_stopped(self) -> None:
         self.running = False
         self.connected = False
         self.logging_in = False
+        self.network_available = True
         self.started_at = 0.0
 
 

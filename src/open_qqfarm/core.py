@@ -32,7 +32,7 @@ class QFarmCoreAPP:
         self.limiter = OperationLimitService()
 
         self.gdata = GameDataService(self.cfg)
-        self.session = GatewayGameSession(self.cfg)
+        self.session = GatewayGameSession(self.cfg, self.runtime)
         self.account = AccountService(self.cfg, self.runtime, self.gdata, self.session)
         self.login = LoginService(self.cfg, self.runtime, self.account)
 
@@ -126,14 +126,14 @@ class QFarmCoreAPP:
             return
         raise RuntimeError("当前未就绪，请稍后重试")
 
-    async def get_all_lands(self, gid: int | None = None):
+    async def get_all_lands(self, gid: int | None = None, cache: bool = True):
         await self.ensure_ready()
         gid = gid or self.account.gid
-        return await self.session.plant_all_lands(gid)
+        return await self.land.get_all_lands(self.session, gid, cache=cache)
 
-    async def get_friend_lands(self, gid: int):
+    async def get_friend_lands(self, gid: int, cache: bool = True):
         await self.ensure_ready()
-        return await self.session.visit_enter_friend(gid)
+        return await self.land.get_friend_lands(self.session, gid, cache=cache)
 
     async def do_farm_all(self):
         await self.ensure_ready()
@@ -158,6 +158,10 @@ class QFarmCoreAPP:
     async def do_farm_sell(self):
         await self.ensure_ready()
         return await self.farm.run_single(OperationType.SELL)
+
+    async def do_farm_buy_seed(self):
+        await self.ensure_ready()
+        return await self.farm.run_single(OperationType.BUY_SEED)
 
     async def do_farm_plant(self):
         await self.ensure_ready()
@@ -247,9 +251,9 @@ class QFarmCoreAPP:
         await self.ensure_ready()
         return await self.friend.run_single(gid, OperationType.PUT_WEED)
 
-    async def get_goods_list(self):
+    async def get_goods_list(self, shop_id: int = 2):
         await self.ensure_ready()
-        return await self.warehouse.get_goods_list()
+        return await self.warehouse.get_goods_list(shop_id=shop_id)
 
     async def get_available_goods_list(self, shop_id: int = 2):
         await self.ensure_ready()

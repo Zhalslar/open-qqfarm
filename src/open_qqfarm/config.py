@@ -2,10 +2,9 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-import random
 from collections.abc import Mapping, MutableMapping
 from types import MappingProxyType
-from typing import Any,  get_type_hints
+from typing import Any, get_type_hints
 
 
 class ConfigNode:
@@ -93,7 +92,6 @@ class FarmConfig(ConfigNode):
     enable_auto: bool
     actions: list[str]
     base_minute: int
-    offset_minute: int
     harvest_sell: bool
     seed_mode: str
     preferred_seed_id: int
@@ -105,7 +103,6 @@ class FriendConfig(ConfigNode):
     enable_auto: bool
     actions: list[str]
     base_minute: int
-    offset_minute: int
     put_insect_count: int = 1
     put_weed_count: int = 1
     whitelist: list[str]
@@ -146,20 +143,6 @@ class CoreConfig(ConfigNode):
         self.base_dir = Path(__file__).parent
         self.default_config_file = self.base_dir / "default_config.json"
         config_data = self.load_default_config() if config is None else config
-        if isinstance(config_data, MutableMapping):
-            notify = config_data.setdefault("notify", {})
-            if isinstance(notify, MutableMapping):
-                notify.setdefault(
-                    "actions",
-                    [
-                        "LandsNotify",
-                        "ItemNotify",
-                        "TaskInfoNotify",
-                        "FriendApplicationReceivedNotify",
-                        "BasicNotify",
-                        "Kickout",
-                    ],
-                )
         self._external_saver = (
             saver if callable(saver := getattr(config_data, "save_config", None)) else None
         )
@@ -169,6 +152,18 @@ class CoreConfig(ConfigNode):
         self.game_data_dir = self.base_dir / "game_data"
         self.qr_code_dir = self.base_dir / "qr_code"
         self.qr_code_dir.mkdir(parents=True, exist_ok=True)
+        self.qr_code_path = self.qr_code_dir / "login_qr.svg"
+
+        self.gateway_ws_url = "wss://gate-obt.nqf.qq.com/prod/ws"
+        self.headers = {
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                "(KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36 "
+                "MicroMessenger/7.0.20.1781(0x6700143B) NetType/WIFI "
+                "MiniProgramEnv/Windows WindowsWechat/WMPF WindowsWechat(0x63090a13)"
+            )
+        }
+        self.origin = "https://gate-obt.nqf.qq.com"
 
 
     def load_default_config(self) -> dict[str, Any]:
@@ -192,12 +187,11 @@ class CoreConfig(ConfigNode):
         self.account.auth_code = auth_code
         self.save_config()
 
-    def get_random_farm_interval(self) -> int:
-        base = self.farm.base_minute * 60
-        offset = self.farm.offset_minute * 60
-        return max(1, base + random.randint(-offset, offset))
+    def get_farm_interval(self) -> int:
+        base = int(self.farm.base_minute) * 60
+        return max(1, base)
 
-    def get_random_friend_interval(self) -> int:
-        base = self.friend.base_minute * 60
-        offset = self.friend.offset_minute * 60
-        return max(1, base + random.randint(-offset, offset))
+    def get_friend_interval(self) -> int:
+        base = int(self.friend.base_minute) * 60
+        return max(1, base)
+

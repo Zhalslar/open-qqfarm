@@ -1,4 +1,5 @@
 from __future__ import annotations
+from google.protobuf.json_format import MessageToDict
 
 import asyncio
 import time
@@ -88,6 +89,7 @@ class NotifyService:
 
         notify = plantpb_pb2.LandsNotify()
         notify.ParseFromString(payload)
+        self.farm.land.invalidate_cache(host_gid=int(notify.host_gid), friend=None)
         land_ids = [land.id for land in notify.lands]
         logger.debug(
             "收到地块信息推送，触发一轮农场作业",
@@ -100,7 +102,7 @@ class NotifyService:
     async def _handle_item(self, payload: bytes) -> None:
         notify = notifypb_pb2.ItemNotify()
         notify.ParseFromString(payload)
-        logger.debug("收到通知", items=notify.items)
+        logger.debug("收到通知", items=MessageToDict(notify))
         self.account.update_from_notify(notify.items)
 
     async def _handle_task_info(self, payload: bytes) -> None:

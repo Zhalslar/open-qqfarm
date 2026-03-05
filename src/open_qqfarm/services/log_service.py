@@ -4,6 +4,7 @@ import json
 import logging
 import sys
 import time
+from collections.abc import Callable
 from collections.abc import Mapping
 from collections import deque
 from dataclasses import asdict
@@ -139,6 +140,9 @@ class LogService:
     def __init__(self, max_entries: int = 200) -> None:
         self._rows: deque[dict[str, Any]] = deque(maxlen=max_entries)
         self._lock = Lock()
+        self._seq = 0
+        self._subscribers: dict[int, Callable[[dict[str, Any]], None]] = {}
+        self._sub_id = 0
         self._logger = logging.getLogger(self._LOGGER_NAME)
         self._logger.setLevel(logging.DEBUG)
         self._logger.propagate = False
@@ -176,19 +180,28 @@ class LogService:
         fields: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         payload_fields = _normalize_fields(dict(fields or {}))
-        row = {
-            "ts": int(time.time()),
-            "level": logging.getLevelName(level),
-            "msg": msg,
-            "fields": payload_fields,
-        }
         with self._lock:
+            self._seq += 1
+            row = {
+                "seq": self._seq,
+                "ts": int(time.time()),
+                "level": logging.getLevelName(level),
+                "msg": msg,
+                "fields": payload_fields,
+            }
             self._rows.append(row)
+            subscribers = list(self._subscribers.values())
 
         if payload_fields:
             self._logger.log(level, msg, extra={"fields": payload_fields})
         else:
             self._logger.log(level, msg)
+
+        for subscriber in subscribers:
+            try:
+                subscriber(dict(row))
+            except Exception:
+                continue
         return row
 
     def debug(
@@ -242,6 +255,29 @@ class LogService:
     def clear(self) -> None:
         with self._lock:
             self._rows.clear()
+
+    def list_since(self, seq: int, limit: int = 200) -> list[dict[str, Any]]:
+        start = max(0, int(seq))
+        cap = max(1, int(limit))
+        with self._lock:
+            rows = [row for row in self._rows if int(row.get("seq", 0)) > start]
+        if len(rows) > cap:
+            return rows[-cap:]
+        return rows
+
+    def subscribe(
+        self, callback: Callable[[dict[str, Any]], None]
+    ) -> Callable[[], None]:
+        with self._lock:
+            self._sub_id += 1
+            sub_id = self._sub_id
+            self._subscribers[sub_id] = callback
+
+        def unsubscribe() -> None:
+            with self._lock:
+                self._subscribers.pop(sub_id, None)
+
+        return unsubscribe
 
 
 logger = LogService()

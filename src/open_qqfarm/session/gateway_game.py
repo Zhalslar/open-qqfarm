@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 
 from ..config import CoreConfig
+from ..models import RuntimeState
 from ..proto import (
     Application,
     BasicInfo,
@@ -27,8 +28,8 @@ class GatewayGameSessionError(GatewaySessionError):
 
 
 class GatewayGameSession(GatewaySession):
-    def __init__(self, config: CoreConfig) -> None:
-        super().__init__(config)
+    def __init__(self, config: CoreConfig, runtime: RuntimeState) -> None:
+        super().__init__(config, runtime)
 
     async def user_login(self):
         req = userpb_pb2.LoginRequest(
@@ -310,7 +311,9 @@ class GatewayGameSession(GatewaySession):
             run_once, land_ids, direct_traverse=direct_traverse
         )
 
-    async def plant_fertilize(self, land_ids: list[int], fertilizer_id: int) -> int:
+    async def plant_fertilize(
+        self, land_ids: list[int], fertilizer_id: int
+    ) -> list[LandInfo]:
         req = plantpb_pb2.FertilizeRequest(
             land_ids=land_ids,
             fertilizer_id=fertilizer_id,
@@ -321,7 +324,7 @@ class GatewayGameSession(GatewaySession):
             req,
             plantpb_pb2.FertilizeReply(),
         )
-        return int(reply.fertilizer)
+        return reply.land
 
     async def plant_put_insects(
         self, host_gid: int, land_ids: list[int]

@@ -30,7 +30,7 @@ class WarehouseService:
         sold_count = len([row for row in sell_items if int(row.count) > 0])
         statistician.inc(OperationType.SELL, sold_count)
         gold_earned = self.get_gold_gain(get_items)
-        self.account.adjust_coupon(gold_earned)
+        self.account.adjust_gold(gold_earned)
         return sell_items, get_items
 
     async def get_goods_list(self, shop_id: int = 2) -> list[GoodsInfo]:
@@ -43,7 +43,7 @@ class WarehouseService:
             price=int(price),
         )
         gold = -(price * num)
-        self.account.adjust_coupon(gold)
+        self.account.adjust_gold(gold)
         logger.info(
             "购买商品完成",
             goods_id=int(goods_id),

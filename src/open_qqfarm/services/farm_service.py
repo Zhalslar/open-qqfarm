@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass, field
-from typing import Awaitable, Callable
+from typing import Any, Awaitable, Callable
 
 from ..config import CoreConfig
 from .game_data_service import GameDataService
@@ -72,6 +72,7 @@ class FarmService:
             OperationType.WATER: FarmAction(self.do_water),
             OperationType.HARVEST: FarmAction(self.do_harvest, refresh=True),
             OperationType.SELL: FarmAction(self.do_sell),
+            OperationType.BUY_SEED: FarmAction(self.do_buy_seed),
             OperationType.REMOVE: FarmAction(self.do_remove, refresh=True),
             OperationType.UNLOCK: FarmAction(self.do_unlock, refresh=True),
             OperationType.UPGRADE: FarmAction(self.do_upgrade, refresh=True),
@@ -123,7 +124,10 @@ class FarmService:
 
             return result
 
-    async def run_all(self) -> list[ActionResult]:
+    async def run_all(
+        self,
+        on_progress: Callable[[dict[str, Any]], None] | None = None,
+    ) -> list[ActionResult]:
         logger.info("开始执行农场全流程操作")
 
         async with self._lock:
@@ -131,20 +135,41 @@ class FarmService:
             if not ctx:
                 return []
 
+            queue: list[tuple[OperationType, FarmAction]] = []
             for op in self.cfg.actions:
                 op_type = OperationType.parse(op)
                 if not op_type:
                     continue
-
                 action = self.action_map.get(op_type)
                 if not action:
                     continue
+                queue.append((op_type, action))
+
+            total_steps = len(queue)
+            for index, (op_type, action) in enumerate(queue):
 
                 if action.refresh:
                     await ctx.refresh()
 
                 result = await action.handler(ctx)
                 ctx.add_result(result)
+                if callable(on_progress):
+                    try:
+                        effect_count = max(0, int(result.count or 0))
+                        on_progress(
+                            {
+                                "op": op_type.value,
+                                "index": index,
+                                "completed_steps": index + 1,
+                                "total_steps": total_steps,
+                                "ok": bool(result.ok),
+                                "count": effect_count,
+                                "effective": bool(result.ok and effect_count > 0),
+                                "extra": dict(result.extra or {}),
+                            }
+                        )
+                    except Exception:
+                        pass
 
                 await asyncio.sleep(self.interval)
 
@@ -288,6 +313,42 @@ class FarmService:
 
         return result
 
+    async def do_buy_seed(self, ctx: FarmContext) -> ActionResult:
+        result = ActionResult(op_type=OperationType.BUY_SEED)
+
+        if not ctx.analyze.empty:
+            result.message = "当前无空地，无需购种"
+            return result
+
+        seed = await self.choose_seed()
+        if not seed:
+            result.message = "没有可购种子"
+            return result
+
+        plan_lands, buy_message, buy_extra = await self._prepare_seed_and_buy(
+            seed,
+            ctx.analyze.empty,
+        )
+        seed_name = self.gdata.get_plant_name_by_seed(seed.item_id)
+        bought_count = max(0, int(buy_extra.get("count", 0) or 0))
+        if bought_count > 0:
+            result.ok = True
+            result.count = bought_count
+            result.message = buy_message or f"购种完成 {bought_count} 个 {seed_name} 种子"
+            result.extra = {
+                "goods_id": max(0, int(buy_extra.get("goods_id", 0) or 0)),
+                "item_id": max(0, int(buy_extra.get("item_id", 0) or 0)),
+            }
+            statistician.inc(OperationType.BUY_SEED, bought_count)
+            return result
+
+        if len(plan_lands) >= len(ctx.analyze.empty):
+            result.message = "背包种子充足，无需购种"
+            return result
+
+        result.message = buy_message or f"{seed_name} 种子库存不足"
+        return result
+
     async def do_remove(self, ctx: FarmContext) -> ActionResult:
         result = ActionResult(op_type=OperationType.REMOVE)
 
@@ -377,12 +438,17 @@ class FarmService:
             result.message = "没有可用种子"
             return result
 
-        plan_lands, buy_message = await self._prepare_seed_and_buy(
-            seed, ctx.analyze.empty
-        )
+        result.extra = {"item_id": int(seed.item_id)}
+        seed_name = self.gdata.get_plant_name_by_seed(seed.item_id)
+        stock = await self.warehouse.get_item_count(seed.item_id)
+        if stock <= 0:
+            result.message = f"{seed_name} 种子库存不足，请先执行购种"
+            return result
 
+        need = len(ctx.analyze.empty)
+        plan_lands = ctx.analyze.empty[:stock]
         if not plan_lands:
-            result.message = buy_message or "种子准备失败"
+            result.message = f"{seed_name} 种子库存不足，请先执行购种"
             return result
 
         try:
@@ -397,11 +463,13 @@ class FarmService:
                 result.message = "种植失败"
                 return result
 
-            seed_name = self.gdata.get_plant_name_by_seed(seed.item_id)
-
             result.ok = True
             result.count = count
             result.message = f"成功种下 {count} 颗 {seed_name} 种子"
+            if count < need:
+                result.message = (
+                    f"{result.message}，库存不足，剩余 {max(0, need - count)} 块空地"
+                )
 
             statistician.inc(OperationType.PLANT, count)
 
@@ -585,9 +653,9 @@ class FarmService:
         self,
         seed: GoodsInfo,
         land_ids: list[int],
-    ) -> tuple[list[int], str]:
+    ) -> tuple[list[int], str, dict[str, int]]:
         if not land_ids:
-            return [], ""
+            return [], "", {}
 
         stock = await self.warehouse.get_item_count(seed.item_id)
         need = len(land_ids)
@@ -595,7 +663,7 @@ class FarmService:
 
         # 当前库存够用
         if stock >= need:
-            return land_ids, ""
+            return land_ids, "", {}
 
         # 计算最多能买多少份
         max_buy = self.account.gold // seed.price
@@ -607,7 +675,7 @@ class FarmService:
                 need=need,
                 stock=stock,
             )
-            return land_ids[:stock], f"背包种子{seed.item_id}库存不足"
+            return land_ids[:stock], f"背包种子{seed.item_id}库存不足", {}
 
         # 需要买多少份才能补足
         missing = need - stock
@@ -636,15 +704,15 @@ class FarmService:
 
         total = stock + bought
         if total <= 0:
-            return [], msg or f"背包种子{seed.item_id}库存不足"
+            return [], msg or f"背包种子{seed.item_id}库存不足", {}
 
+        buy_extra: dict[str, int] = {}
         if bought > 0 and not msg:
             msg = f"购买{bought}个种子"
-            logger.info(
-                "自动购种完成",
-                seed_id=seed.item_id,
-                seed_name=seed_name,
-                bought=bought,
-            )
+            buy_extra = {
+                "goods_id": int(seed.id),
+                "item_id": int(seed.item_id),
+                "count": int(bought),
+            }
 
-        return land_ids[: min(need, total)], msg
+        return land_ids[: min(need, total)], msg, buy_extra

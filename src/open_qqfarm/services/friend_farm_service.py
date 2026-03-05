@@ -125,11 +125,27 @@ class FriendFarmService:
             finally:
                 await self.leave(gid)
 
-    async def run_all(self) -> list[ActionResult]:
+    async def run_all(
+        self,
+        on_progress: Callable[[dict[str, Any]], None] | None = None,
+    ) -> list[ActionResult]:
         results: list[ActionResult] = []
 
         friends = await self.friend_service.get_all_friends(cache=False)
         logger.info(f"开始执行好友全流程操作，共 {len(friends)} 人")
+
+        action_queue: list[tuple[OperationType, FriendFarmAction]] = []
+        for op in self.cfg.actions:
+            op_type = OperationType.parse(op)
+            if not op_type:
+                continue
+            action = self.action_map.get(op_type)
+            if not action:
+                continue
+            action_queue.append((op_type, action))
+
+        total_steps = len(friends) * len(action_queue)
+        completed_steps = 0
 
         for friend in friends:
             gid = int(friend.gid)
@@ -140,20 +156,30 @@ class FriendFarmService:
                     continue
 
                 try:
-                    for op in self.cfg.actions:
-                        op_type = OperationType.parse(op)
-                        if not op_type:
-                            continue
-
-                        action = self.action_map.get(op_type)
-                        if not action:
-                            continue
+                    for op_type, action in action_queue:
 
                         if action.refresh:
                             await ctx.refresh()
 
                         result = await action.handler(ctx)
                         ctx.add_result(result)
+                        completed_steps += 1
+                        if callable(on_progress):
+                            try:
+                                effect_count = max(0, int(result.count or 0))
+                                on_progress(
+                                    {
+                                        "op": op_type.value,
+                                        "gid": gid,
+                                        "completed_steps": completed_steps,
+                                        "total_steps": total_steps,
+                                        "ok": bool(result.ok),
+                                        "count": effect_count,
+                                        "effective": bool(result.ok and effect_count > 0),
+                                    }
+                                )
+                            except Exception:
+                                pass
 
                         await asyncio.sleep(self.interval)
 

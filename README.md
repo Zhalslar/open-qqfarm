@@ -1,6 +1,8 @@
+# 已弃坑， 不想玩了， 不好玩
+
 # open-qqfarm
 
-QQ 农场协议访问与自动化核心，独立 Python 包（非 AstrBot 插件）。
+QQ 农场协议访问与自动化核心
 
 ## 当前状态
 
@@ -76,7 +78,6 @@ start.bat
       "plant"
     ],
     "base_minute": 5,
-    "offset_minute": 0,
     "harvest_sell": true,
     "seed_mode": "preferred_id",
     "preferred_seed_id": 20002,
@@ -92,7 +93,6 @@ start.bat
       "help_insect"
     ],
     "base_minute": 60,
-    "offset_minute": 0,
     "put_insect_count": 1,
     "put_weed_count": 1,
     "whitelist": [],

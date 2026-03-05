@@ -67,6 +67,50 @@ class GameDataService:
             self.role_level[level_int] = int(exp)
         self.level_exp_table = dict(self.role_level)
 
+    def get_level_exp_bounds(self, level: int) -> tuple[int, int]:
+        table = self.level_exp_table
+        if not table:
+            return (0, 0)
+
+        lvl = max(1, int(level or 1))
+        levels = sorted(table.keys())
+        current_level = levels[0]
+        for item in levels:
+            if item <= lvl:
+                current_level = item
+            else:
+                break
+
+        next_level = current_level
+        for item in levels:
+            if item > current_level:
+                next_level = item
+                break
+
+        base_exp = int(table.get(current_level, 0))
+        next_exp = int(table.get(next_level, base_exp))
+        return (base_exp, next_exp)
+
+    def get_level_exp_progress(self, *, level: int, exp: int) -> dict[str, Any]:
+        base_exp, next_exp = self.get_level_exp_bounds(level)
+        total = max(0, int(next_exp) - int(base_exp))
+        safe_exp = max(0, int(exp or 0))
+        current = max(0, safe_exp - int(base_exp))
+        is_max_level = total <= 0
+        if is_max_level:
+            percent = 100.0
+        else:
+            current = min(current, total)
+            percent = (float(current) / float(total)) * 100.0
+        return {
+            "base": int(base_exp),
+            "next": int(next_exp),
+            "current": int(current),
+            "total": int(total),
+            "percent": round(float(percent), 2),
+            "is_max_level": bool(is_max_level),
+        }
+
     def _load_plants(self):
         raw_plants: list[dict[str, Any]] = self._read_json(self.plant_file, [])
         self.plants = [Plant.from_dict(plant) for plant in raw_plants]
