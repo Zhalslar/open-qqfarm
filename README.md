@@ -17,7 +17,7 @@ QQ 农场网页版客户端完整实现+自动化模块
 ## 安装
 
 ```bash
-pip install open-qqfarm
+pip install open-qqfarm(目前还没发包， 下载压缩包来使用吧)
 ```
 
 本地开发：
