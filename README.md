@@ -2,7 +2,10 @@
 
 # open-qqfarm
 
-QQ 农场协议访问与自动化核心
+QQ 农场网页版客户端完整实现+自动化模块
+
+
+![8ea15276c19a7e00a23549fcea48c339](https://github.com/user-attachments/assets/db55e881-37fa-4aef-b521-87e9fae200ec)
 
 ## 当前状态
 
